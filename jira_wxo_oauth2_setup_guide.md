@@ -277,8 +277,6 @@ Now that you have verified the Jira connection and behavior work correctly, **de
 
 4. Also delete the **AskOrchestrate** agent that comes pre-installed — it may distract lab participants. Delete it the same way.
 
-<img src="photos/27.png" alt="WXO Build page showing only AskOrchestrate agent remaining" width="1000">
-
 The WXO instance should now have **no agents** on the Build page, giving lab participants a clean starting point.
 
 ---
