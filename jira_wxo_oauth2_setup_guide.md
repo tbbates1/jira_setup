@@ -1,6 +1,58 @@
 # Jira Connection Setup Guide
 
-This section walks through creating a Jira account and connecting it to watsonx Orchestrate via OAuth2. You will need a throwaway email, a Jira free trial, your IBM Cloud region, and the Atlassian Developer Console.
+This guide walks through creating a Jira account, connecting it to watsonx Orchestrate (WXO) via OAuth 2.0, and configuring the **Issue Manager** (Jira) agent. You will need a throwaway email, a Jira free trial, your IBM Cloud region, and the Atlassian Developer Console.
+
+**Two paths are covered for adding the Issue Manager agent:**
+
+- **Path A (preferred):** Import from the WXO **Discover** catalog — all UI.
+- **Path B (fallback):** Import via the **ADK CLI** using the files in [`issue_manager/`](./issue_manager/) — use this when the agent doesn't appear in Discover.
+
+See [section 5](#5-jira-agent-configuration-in-wxo) for both paths. The rest of this guide (Atlassian OAuth app, WXO connection, agent behavior) applies regardless of which path you take.
+
+---
+
+## Before you start — prerequisites
+
+Before working through this guide, set up a local development environment.
+
+### Install VS Code
+
+Download and install **Visual Studio Code** (free, macOS/Windows/Linux):
+
+[https://code.visualstudio.com/download](https://code.visualstudio.com/download)
+
+You will use VS Code as your editor and to run shell commands from its integrated terminal (`` Cmd+` `` on macOS, `` Ctrl+` `` on Windows/Linux).
+
+### (Optional) Install Claude Code
+
+If you want AI assistance navigating this guide or debugging errors, install **Claude Code**. It runs in your terminal and can read/edit files alongside you:
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+See [claude.com/product/claude-code](https://www.claude.com/product/claude-code) for details. This is **optional** — every step below works without it.
+
+### Clone or download this repository
+
+The files you will use in Path B (the [`issue_manager/`](./issue_manager/) ADK export) and all the screenshots referenced in this guide live in the GitHub repo **[tbbates1/jira_setup](https://github.com/tbbates1/jira_setup)**. Pick one of the two options below.
+
+**Option A — Clone with git (recommended):**
+
+```bash
+git clone https://github.com/tbbates1/jira_setup.git
+cd jira_setup
+```
+
+**Option B — Download as a ZIP:**
+
+1. Open [github.com/tbbates1/jira_setup](https://github.com/tbbates1/jira_setup) in your browser.
+2. Click the green **Code** button → **Download ZIP**.
+3. Unzip the downloaded file and open the resulting `jira_setup-main/` folder.
+
+Open the folder in VS Code (`File → Open Folder…`), then use its integrated terminal to run the shell commands you will see in this guide.
+
+---
 
 ### 1. Create an email account
 
@@ -166,7 +218,20 @@ The `audience` parameter is required for Jira Cloud OAuth 2.0 (3LO) to work corr
 
 ### 5. JIRA Agent Configuration in WXO
 
-#### 5.1 Import the Agent
+There are **two ways** to add the Issue Manager agent to your WXO instance:
+
+- **Path A — Import from Discover catalog** (preferred, UI-only). Use this when the **Issue Manager** agent is visible in **Build → Discover**.
+- **Path B — Import via the ADK CLI** (fallback). Use this when the agent does **not** appear in Discover. A complete ADK export of the agent is included in this repo at [`issue_manager/`](./issue_manager/).
+
+> **Why two paths?** The Discover catalog content varies by region, account type, and WXO version. If you can't find the **Issue Manager** tile in Discover, don't worry — Path B gives you the same agent via the ADK.
+>
+> Note: WXO does **not** support uploading a `.zip` through the Discover UI. External agents must be imported via the ADK CLI.
+
+Pick **one** path below, then continue to step 5.2.
+
+---
+
+#### 5.1 Path A — Import from Discover catalog
 
 1. In WXO, go to **Build** and click **Discover** to open the catalog
 
@@ -185,6 +250,253 @@ The `audience` parameter is required for Jira Cloud OAuth 2.0 (3LO) to work corr
 4. You will be taken to the agent editor
 
 <img src="photos/84.png" alt="Issue Manager agent editor" width="600">
+
+> **Can't find the Issue Manager agent in Discover?** Skip this section and use **Path B** below.
+
+---
+
+#### 5.1-ALT Path B — Import via the ADK CLI (fallback)
+
+Use this path when the Issue Manager agent is **not** visible in the WXO **Discover** catalog. You will use the **watsonx Orchestrate ADK CLI** to import the agent YAML from the [`issue_manager/`](./issue_manager/) folder in this repo.
+
+If this is your first time using the ADK, don't worry — the sub-steps below walk through every step from scratch (getting your WXO credentials, installing Python, creating a virtual environment, installing the ADK CLI, connecting it to your WXO instance, and importing the agent). No prior ADK experience is required.
+
+> **Official reference docs (external):**
+> - [Installing the ADK](https://developer.watson-orchestrate.ibm.com/getting_started/installing)
+> - [Importing an agent](https://developer.watson-orchestrate.ibm.com/agents/import_agent)
+
+---
+
+##### Step 1 — Get your WXO credentials
+
+You need **two values** from your watsonx Orchestrate instance:
+
+1. **Service instance URL** — looks like `https://api.<region>.watson-orchestrate.cloud.ibm.com/instances/<instance-id>`
+2. **API key**
+
+How to get them:
+
+1. Open watsonx Orchestrate in your browser.
+2. Click your **profile icon** (top right) → **Settings**.
+3. Go to the **API details** tab.
+4. **Copy** the **Service instance URL** and save it somewhere.
+5. Click **Generate API key** — you will be taken to IBM Cloud's API keys page.
+6. On that page, click **Create**, then **copy the key immediately** and save it somewhere safe. You will not be able to view it again.
+
+Keep both values handy — you will paste them below.
+
+---
+
+##### Step 2 — Install Python 3.11, 3.12, or 3.13
+
+The ADK CLI requires Python **3.11, 3.12, or 3.13**. Check what you have installed:
+
+```bash
+python3 --version
+```
+
+If the version is not one of those three (for example, you see 3.10 or 3.14), install a supported version. On macOS with [Homebrew](https://brew.sh):
+
+```bash
+brew install python@3.11
+```
+
+> You can use `python@3.12` or `python@3.13` instead — any of the three works. Replace `python3.11` with your chosen version in the rest of these commands.
+
+---
+
+##### Step 3 — Create and activate a Python virtual environment
+
+A virtual environment keeps the ADK's Python packages isolated from your system Python.
+
+From the root of this repo (the folder **containing** `jira_setup_ai_challenge/`), create a venv:
+
+```bash
+python3.11 -m venv .venv
+```
+
+Activate it:
+
+```bash
+source .venv/bin/activate
+```
+
+Your terminal prompt should now start with `(.venv)`. Confirm the Python version inside the venv:
+
+```bash
+python3 --version
+```
+
+Keep this venv active for the rest of this guide. If you open a new terminal later, re-activate it with `source .venv/bin/activate`.
+
+---
+
+##### Step 4 — Install the ADK CLI
+
+With the venv active, install the watsonx Orchestrate ADK:
+
+```bash
+pip install ibm-watsonx-orchestrate
+```
+
+Verify the install:
+
+```bash
+orchestrate --version
+```
+
+You should see a version number printed.
+
+---
+
+##### Step 5 — Register your WXO environment with the ADK
+
+The ADK uses named **environments** to know which WXO instance to talk to. You can name your environment **anything you want** — `jira_setup`, `my_wxo`, `work`, `demo`, whatever you will remember. The name is just a local label; it has no effect on WXO itself.
+
+Pick a name, then run the command below. Replace:
+- `<your-env-name>` with the name you picked
+- `<your-service-instance-url>` with the Service instance URL from Step 1
+
+```bash
+orchestrate env add -n <your-env-name> -u <your-service-instance-url>
+```
+
+**Concrete example** (env name `jira_setup` and a sample URL):
+
+```bash
+orchestrate env add -n jira_setup -u https://api.us-south.watson-orchestrate.cloud.ibm.com/instances/abc123-your-instance-id
+```
+
+You should see:
+
+```
+[INFO] - Environment '<your-env-name>' has been created
+```
+
+> **Already registered a WXO environment before?** Run `orchestrate env list` to see what's already registered. You can reuse an existing name — just skip this step and use that name in Step 6.
+
+---
+
+##### Step 6 — Activate the environment
+
+Activate the environment you just registered (use the same name):
+
+```bash
+orchestrate env activate <your-env-name>
+```
+
+For example:
+
+```bash
+orchestrate env activate jira_setup
+```
+
+When prompted, paste the **API key** from Step 1:
+
+```
+Please enter WXO API key:
+```
+
+You should see:
+
+```
+[INFO] - Environment '<your-env-name>' is now active
+```
+
+Your ADK CLI is now connected to your WXO instance.
+
+---
+
+##### Step 7 — Import the Issue Manager agent
+
+Navigate into the `jira_setup_ai_challenge` directory:
+
+```bash
+cd jira_setup_ai_challenge
+```
+
+Import the agent YAML:
+
+```bash
+orchestrate agents import -f issue_manager/agents/native/jira_issue_management_agent_41df14f2.yaml
+```
+
+The Issue Manager agent uses **IBM out-of-the-box (OOTB) tools** (`create_an_issue`, `get_projects`, `get_project_issue_types`, etc.) that are normally pre-registered in every WXO instance. In most cases, importing the agent YAML alone is enough.
+
+- **If the command succeeds** → skip to [Step 9 — Verify](#step-9--verify-the-import).
+- **If the command fails** with "tool not found" or "connection not found" → continue with Step 8.
+
+---
+
+##### Step 8 — (Only if Step 7 failed) Import the tools and connection
+
+Run this step only if Step 7 reported missing tools or a missing connection. It imports every tool and the Jira connection spec from the [`issue_manager/`](./issue_manager/) folder.
+
+First, import the Jira connection spec:
+
+```bash
+orchestrate connections import -f issue_manager/connections/jira_ibm_184bdbd3.yaml
+```
+
+Then import each tool. Every tool lives in its own folder under `issue_manager/tools/`:
+
+```bash
+orchestrate tools import -k python -f issue_manager/tools/create_an_issue_9b358
+orchestrate tools import -k python -f issue_manager/tools/delete_an_issue_6095b
+orchestrate tools import -k python -f issue_manager/tools/delete_an_issue_comment_9329c
+orchestrate tools import -k python -f issue_manager/tools/get_issue_priorities_11025
+orchestrate tools import -k python -f issue_manager/tools/get_issues_b8d23
+orchestrate tools import -k python -f issue_manager/tools/get_project_issue_types_f6753
+orchestrate tools import -k python -f issue_manager/tools/get_projects_52926
+orchestrate tools import -k python -f issue_manager/tools/get_users_49c26
+orchestrate tools import -k python -f issue_manager/tools/update_an_issue_a9c66
+orchestrate tools import -k python -f issue_manager/tools/update_issue_comment_c6ec1
+```
+
+Then re-run the agent import from Step 7:
+
+```bash
+orchestrate agents import -f issue_manager/agents/native/jira_issue_management_agent_41df14f2.yaml
+```
+
+> **Import command errors out on the package folder?** If `orchestrate tools import` complains that it expects a `.py` file rather than a directory, your ADK version may not accept this OOTB package layout. Options: upgrade the ADK (`pip install -U ibm-watsonx-orchestrate`), or ask your instructor for a packaged `.py` version of the tools.
+
+---
+
+##### Step 9 — Verify the import
+
+List your agents:
+
+```bash
+orchestrate agents list
+```
+
+You should see `jira_issue_management_agent_41df14f2` (display name: **Issue Manager**) in the output.
+
+Refresh the WXO UI in your browser and go to **Build** — the **Issue Manager** agent should now appear.
+
+---
+
+##### Step 10 — Rename with your initials (optional but recommended)
+
+If multiple people share the same WXO instance, rename the agent so it does not collide with others'.
+
+**Option A — in the WXO UI:**
+1. Go to **Build** and open your imported **Issue Manager** agent.
+2. Click the pencil icon next to the agent name and update it (e.g. **Issue Manager TB**).
+
+**Option B — before importing, edit the YAML:**
+Open `issue_manager/agents/native/jira_issue_management_agent_41df14f2.yaml` and change:
+- `name:` → something unique, e.g. `jira_issue_management_agent_TB`
+- `display_name:` → e.g. `Issue Manager TB`
+
+Then re-run `orchestrate agents import -f …` from Step 7.
+
+---
+
+**Regardless of which path (A or B) you took, you still need to:**
+- Complete the WXO Jira connection setup in [section 4](#4-launch-watsonx-orchestrate-and-set-up-the-connection).
+- Update the agent's behavior instructions in [section 5.3](#53-update-behavior-instructions) so it knows your Jira `project_id` and `issuetype_id`.
 
 #### 5.2 Get Project and Issue Type IDs
 
@@ -285,6 +597,8 @@ The WXO instance should now have **no agents** on the Build page, giving lab par
 
 | Error | Cause | Fix |
 |-------|-------|-----|
+| Issue Manager agent not visible in **Discover** | Catalog content varies by region / account / WXO version | Use **Path B** in section 5.1-ALT to import the agent via the ADK CLI from the [`issue_manager/`](./issue_manager/) folder |
+| Tried to upload a `.zip` in Discover, no option to do so | WXO Discover does not support `.zip` uploads | Import via the ADK CLI instead — see section 5.1-ALT |
 | `redirect_uri is not registered for client` | Callback URL not added in Atlassian Developer Console | Add the WXO callback URL under **Authorization** in your Atlassian app |
 | `Caught error during Jira client initialization: base_url` | Server URL is blank in WXO connection | Set Server URL to `https://api.atlassian.com` |
 | `404 Not Found for url: https://yoursite.atlassian.net/oauth/token/accessible-resources` | Server URL is set to your Jira instance instead of the API | Change Server URL to `https://api.atlassian.com` |
