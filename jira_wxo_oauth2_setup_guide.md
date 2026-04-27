@@ -34,11 +34,7 @@ The repo gives you the plumbing. The performance comes from what you do on top.
 
 ## 0 · Prerequisites
 
-### 0.1 VS Code
-
-[Download Visual Studio Code](https://code.visualstudio.com/download). You will use its integrated terminal (`` Cmd+` `` on macOS, `` Ctrl+` `` on Windows/Linux) for every shell command in this guide.
-
-### 0.2 Python 3.11, 3.12, or 3.13
+### 0.1 Python 3.11, 3.12, or 3.13
 
 The watsonx Orchestrate ADK CLI requires one of these versions. Check what you have:
 
@@ -52,7 +48,7 @@ If you don't have a supported version, install one. On macOS with [Homebrew](htt
 brew install python@3.11
 ```
 
-### 0.3 Clone this repo
+### 0.2 Clone this repo
 
 ```bash
 git clone https://github.com/tbbates1/jira_setup.git
@@ -61,7 +57,7 @@ cd jira_setup
 
 Or download as a ZIP from the green **Code** button on [github.com/tbbates1/jira_setup](https://github.com/tbbates1/jira_setup).
 
-### 0.4 Set up a virtual environment and install the ADK
+### 0.3 Set up a virtual environment and install the ADK
 
 ```bash
 python3.11 -m venv .venv
@@ -81,7 +77,10 @@ Keep this venv active for the rest of the guide. Re-activate with `source .venv/
 3. Create a workspace and a project (any template — Kanban or Scrum works fine).
 4. Take note of the **project key** Atlassian assigns (e.g. `KAN`, `PROJ`). You will use it later.
 
-> **Tip:** if you want a throwaway lab account, sign up with a fresh email (e.g. an `outlook.com` account created in a Chrome Guest tab) so it doesn't collide with your work Atlassian login.
+> **Tip — use a throwaway, shareable account.** Sign up for Jira with a fresh email (e.g. an `outlook.com` account created in a Chrome Guest tab) instead of your work address. Two reasons:
+>
+> 1. **Avoid collisions** with any existing Atlassian login on your work email.
+> 2. **Make it shareable across the team.** Atlassian (Jira + the Developer Console you'll use in §2) requires two-factor authentication on the account, which makes credential sharing painful. Outlook lets you create the email without 2FA, so you can hand the same login to teammates and they can authenticate the WXO connection in §5 without juggling phone-based 2FA codes.
 
 ---
 
@@ -413,6 +412,7 @@ The OAuth bearer token is fetched via `connections.oauth2_auth_code("jira_lab")`
 | Agent says "I don't see any issues" but issues exist | `/search/jql` requires explicit `fields` since 2025 — already handled in `jira_tools.py`, but if you're authoring your own tools, pass `fields=summary,status` |
 | Tool import fails with `No module named 'ibm_botocore'` | You're trying to import a tool with a private dependency that isn't on PyPI. Stick to the patterns in [`jira_agent/jira_tools.py`](./jira_agent/jira_tools.py) — only standard libraries plus `requests` |
 | Token works briefly then stops working ~1 hour later | `offline_access` not in scope → no refresh token | Re-run `orchestrate connections set-credentials` with `--scope '... offline_access'` and re-authenticate in §5 |
+| Mixing the OOTB Jira agent/tools with this custom setup — same `Error getting Python tool status` / `EOF` | Hybrids don't work. The OOTB Issue Manager and its tools hard-code `binding.python.connections.jira_ibm_<suffix>`, so they ignore your custom connection (`jira_lab`) entirely; conversely, this repo's tools won't pick up an OOTB connection's token if their `JIRA_APP_ID` doesn't match. Even a "correctly authenticated" OOTB connection can fail credential injection on some tenants with no useful error | Pick one path: either go fully custom (this guide), or fully OOTB. Don't try to half-import the OOTB Issue Manager and bolt the custom tools on top — they'll fight over which connection is "the" Jira connection and you'll burn hours chasing an opaque executor error. If you've already started down both paths, delete the OOTB agent + its 10 tools (`orchestrate agents remove -k native -n jira_issue_management_agent_*`, `orchestrate tools remove -n create_an_issue` etc.) before importing this repo's `jira_agent/` |
 
 For more detail on connection internals see the official docs:
 
