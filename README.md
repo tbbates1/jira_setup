@@ -32,10 +32,9 @@ The repo gives you the plumbing. The performance comes from what you build on to
 
 ## Getting started
 
-1. Install **VS Code**: https://code.visualstudio.com/download
-2. Clone this repo:
+1. Clone this repo:
    ```bash
    git clone https://github.com/tbbates1/jira_setup.git
    cd jira_setup
    ```
-3. Open [`jira_wxo_oauth2_setup_guide.md`](./jira_wxo_oauth2_setup_guide.md) and follow the steps.
+2. Open [`jira_wxo_oauth2_setup_guide.md`](./jira_wxo_oauth2_setup_guide.md) and follow the steps.
